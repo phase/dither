@@ -3,6 +3,35 @@ use std::ops::{Add, Div, Mul};
 #[derive(Default, Debug, PartialEq, Eq, Clone, Copy)]
 pub struct RGB<N>(pub N, pub N, pub N);
 
+const RED: f64 = 0.2126;
+const GREEN: f64 = 0.7152;
+const BLUE: f64 = 0.0722;
+impl<N: Into<f64>> RGB<N> {
+    pub fn to_chroma_corrected_black_and_white(RGB(r, g, b): Self) -> u8 {
+        clamp_to_u8(r.into() * RED + g.into() * GREEN + b.into() * BLUE)
+    }
+}
+
+fn clamp_to_u8(n: f64) -> u8 {
+    match n {
+        n if n > 255.0 => 255,
+        n if n < 0.0 => 0,
+        n => n as u8,
+    }
+}
+impl RGB<u8> {
+    pub fn from_color_corrected_black_and_white(p: i16) -> Self {
+        fn clamp(p: i16) -> u8 {
+            match p {
+                p if p > 255 => 255,
+                p if p < 0 => 0,
+                p => p as u8,
+            }
+        }
+        RGB(clamp(p), clamp(p), clamp(p))
+    }
+}
+
 impl<N> Add for RGB<N>
 where
     N: Add<Output = N>,

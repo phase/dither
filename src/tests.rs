@@ -33,7 +33,7 @@ fn test_no_op() {
     fn no_op(p: RGB<i16>) -> (RGB<i16>, RGB<i16>) {
         (p, RGB::default())
     }
-    let mut test_img_buf: Vec<RGB<u8>> = Vec::with_capacity(9);
+    let mut test_img_buf: Vec<RGB<i16>> = Vec::with_capacity(9);
     for y in 0..3 {
         for x in 0..3 {
             test_img_buf.push(RGB(0, y, x));
@@ -46,20 +46,15 @@ fn test_no_op() {
     assert_eq!(img, NoOpDither::dither(img.clone(), no_op));
 }
 
-#[test]
+/*#[test]
 fn test_main() {
-    let mut output = std::env::current_dir().unwrap();
-    output.push("test_output.png");
-
-    dbg!(&output);
-    output.push("bliss_dithered.png");
+    let output = "/Users/efron/rust/dither/grayscale.png";
     let opts = Opt {
-        debug: true,
+        color: false,
         input: test_image_path(),
-        output: output.clone(),
+        output: PathBuf::from(output.to_owned()),
         ditherer: Ditherer::Stucki,
-        bit_depth: 1,
     };
     main(opts);
-    std::fs::remove_file(&output);
 }
+*/

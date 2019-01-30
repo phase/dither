@@ -29,7 +29,50 @@
 //!
 //!
 //!By spreading the error to multiple pixels, each with a different value, we minimize any distracting bands of speckles like the original error diffusion example.
-use super::Dither;
+
+use super::Img;
+use std::ops::{Add, Div, Mul};
+
+/// A type of Dither. Available dithers are [Stucki], [Atkinson], [FloydSteinberg], [Burkes]
+pub trait Dither {
+    const DIV: i16;
+    const OFFSETS: &'static [(isize, isize, i16)];
+    /// dither a 2d matrix.
+    /// `P` is the type of pixel ([`u8`], [RGB<f64, f64, f64>]);
+    /// S is multiplible and divisble by a **S**CALAR
+    /// but adds to ITSELF
+    ///
+    fn dither<P>(img: Img<P>, mut quantize: impl FnMut(P) -> (P, P)) -> super::Img<P>
+    where
+        P: Add<Output = P> + Mul<i16, Output = P> + Div<i16, Output = P> + Copy + Default,
+    {
+        let (width, height) = img.size();
+
+        let mut output: Vec<P> = vec![P::default(); img.len()];
+        let mut spillover: Vec<P> = vec![P::default(); img.len()];
+
+        for y in 0..height {
+            for x in 0..width {
+                let i = (y * width + x) as usize;
+
+                let (quantized, spill) = quantize(img[(x, y)] + spillover[i]);
+                output[i] = quantized;
+
+                // add spillover matrices
+                let (x, y) = (x as isize, y as isize);
+                for (dx, dy, mul) in Self::OFFSETS.iter().cloned() {
+                    let i = (((y + dy) * width as isize) + (x + dx)) as usize;
+
+                    if let Some(stored_spill) = spillover.get_mut(i) {
+                        *stored_spill = *stored_spill + (spill * mul) / Self::DIV;
+                    }
+                }
+            }
+        }
+        Img { buf: output, width }
+    }
+}
+
 // Stucki Dithering
 ///
 ///             X   8   4
@@ -51,6 +94,13 @@ pub struct Atkinson;
 ///     (1/16)
 pub struct FloydSteinberg;
 
+///
+///             X   8   4
+///     2   4   8   4   2
+///
+///           (1/32)
+pub struct Burkes;
+
 #[derive(Debug)]
 pub struct ErrorUnknownDitherer(String);
 impl std::fmt::Display for ErrorUnknownDitherer {
@@ -69,6 +119,7 @@ impl std::str::FromStr for Ditherer {
             }
             "atkinson" => Ditherer::Atkinson,
             "stucki" => Ditherer::Stucki,
+            "burkes" => Ditherer::Burkes,
             s => return Err(ErrorUnknownDitherer(s.to_string())),
         })
     }
@@ -81,8 +132,23 @@ pub enum Ditherer {
     Atkinson,
     /// [Stucki]
     Stucki,
+    /// [Burkes]
+    Burkes,
 }
 
+impl Ditherer {
+    pub fn dither<P>(self, img: Img<P>, quantize: impl FnMut(P) -> (P, P)) -> Img<P>
+    where
+        P: Add<Output = P> + Mul<i16, Output = P> + Div<i16, Output = P> + Copy + Default,
+    {
+        match self {
+            Ditherer::FloydSteinberg => FloydSteinberg::dither(img, quantize),
+            Ditherer::Atkinson => Atkinson::dither(img, quantize),
+            Ditherer::Burkes => Burkes::dither(img, quantize),
+            Ditherer::Stucki => Stucki::dither(img, quantize),
+        }
+    }
+}
 impl Dither for Atkinson {
     const DIV: i16 = 8;
     const OFFSETS: &'static [(isize, isize, i16)] = &[
@@ -94,6 +160,19 @@ impl Dither for Atkinson {
         (1, 1, 1),
         //
         (0, 2, 1),
+    ];
+}
+
+impl Dither for Burkes {
+    const DIV: i16 = 32;
+    const OFFSETS: &'static [(isize, isize, i16)] = &[
+        (1, 0, 8),
+        (2, 0, 4),
+        (-2, 1, 2),
+        (-1, 1, 4),
+        (0, 1, 8),
+        (1, 1, 4),
+        (2, 1, 2),
     ];
 }
 
