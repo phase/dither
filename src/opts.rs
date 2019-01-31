@@ -7,7 +7,7 @@ pub struct Opt {
     #[structopt(short = "v", long = "verbose")]
     pub verbose: bool,
     /// Input file: currently, only .png is supported.
-    #[structopt(parse(from_os_str))]
+    #[structopt(name = "input", parse(from_os_str))]
     pub input: PathBuf,
     /// Whether to use color. Default is false.
     #[structopt(short = "c", long = "color")]
@@ -21,7 +21,7 @@ pub struct Opt {
     /// the input file will be appended with the follwing information:
     /// $BASE_dithered_$DITHER_$COLOR_$DEPTH
     /// `$dither bunny.png -c --dither=atkinson --bit-depth=2` will save to bunny_atkinson_c_2.png
-    #[structopt(parse(from_os_str))]
+    #[structopt(name = "output", parse(from_os_str))]
     output: Option<PathBuf>,
 
     /// Ditherering algorithm to use. Options are
