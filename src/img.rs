@@ -1,3 +1,4 @@
+use super::Result;
 use super::RGB;
 use std::fs::File;
 use std::io;
@@ -10,6 +11,14 @@ pub struct Img<P> {
 }
 
 impl<P> Img<P> {
+    pub fn convert_with<Q>(self, convert: impl Fn(P) -> Q) -> Img<Q> {
+        let Img { buf, width } = self;
+        Img {
+            buf: buf.into_iter().map(convert).collect(),
+            width,
+        }
+    }
+    #[inline]
     fn idx(&self, (x, y): (u32, u32)) -> usize {
         ((y * self.width) + x) as usize
     }
@@ -28,22 +37,29 @@ impl<P> Img<P> {
     }
 }
 
-impl Img<RGB<u8>> {
-    pub fn read_png<P: AsRef<Path>>(path: P) -> io::Result<Self> {
+impl<N: From<u8>> Img<RGB<N>> {
+    pub fn read_png<P: AsRef<Path>>(path: P) -> Result<Img<RGB<N>>> {
         let decoder = png::Decoder::new(File::open(path)?);
-        let (info, mut reader) = decoder.read_info().unwrap();
+        let (info, mut reader) = decoder.read_info()?;
         let mut raw_buf = vec![0; info.buffer_size()];
-        reader.next_frame(&mut raw_buf).unwrap();
+        reader.next_frame(&mut raw_buf)?;
         let mut bytes = raw_buf.into_iter();
         let mut buf = Vec::with_capacity(bytes.len() / 3);
         while let (Some(r), Some(g), Some(b)) = (bytes.next(), bytes.next(), bytes.next()) {
-            buf.push(RGB(r, g, b))
+            buf.push(RGB(N::from(r), N::from(g), N::from(b)))
         }
         let width = info.width;
         Ok(Img { buf, width })
     }
 }
 
+impl Img<RGB<f64>> {
+    pub fn save_png<P: AsRef<Path>>(self, path: P) -> Result<()> {
+        self.convert_with(|p| p.convert_with(super::rgb::clamp_f64_to_u8))
+            .save_png(path)?;
+        Ok(())
+    }
+}
 impl Img<RGB<u8>> {
     /// the raw_buf flattens out each RGB triplet;
     /// ```
@@ -61,6 +77,7 @@ impl Img<RGB<u8>> {
         raw_buf
     }
 
+    /// save an 8-bit color image to a PNG at at the given path, creating or truncating the file if necessary
     pub fn save_png<P: AsRef<Path>>(self, path: P) -> io::Result<()> {
         use png::HasParameters;
         let (width, height) = self.size();

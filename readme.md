@@ -7,7 +7,7 @@ Inspired by: <http://www.tannerhelland.com/4660/dithering-eleven-algorithms-sour
 ## usage
 
 ```bash
-dither INPUT OUTPUT [-c] [-v] [--ditherer=floyd]
+dither INPUT OUTPUT [-c] [-v] [--ditherer] [--bit_depth]
 ```
 
 example:
@@ -34,7 +34,16 @@ Whether to dither in black and white (default) or color.
 
 The type of ditherer to use. Available options are
 
-- `"floyd"` (default, floyd-steinberg dithering)
+- `"floyd"`, `"steinberg"`, `"floydsteinberg"` _(default, floyd-steinberg dithering)_
 - `"atkinson"`,
 - `"stucki"`,
 - `"burkes"`,
+- `"jarvis"`, `"judice"`, `ninke"` _Jarvis-Judice-Ninke dithering_
+
+### `-v, --verbose`
+
+Verbose debug output
+
+### `--bit-depth`
+
+Default 1\. Bit depth should be an unsigned integer between 1 and 7\. The number of bits to compress each channel to. Default is 1 (black and white dithering or eight-color).

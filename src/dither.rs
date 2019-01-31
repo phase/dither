@@ -35,8 +35,8 @@ use std::ops::{Add, Div, Mul};
 
 /// A type of Dither. Available dithers are [Stucki], [Atkinson], [FloydSteinberg], [Burkes]
 pub trait Dither {
-    const DIV: i16;
-    const OFFSETS: &'static [(isize, isize, i16)];
+    const DIV: f64;
+    const OFFSETS: &'static [(isize, isize, f64)];
     /// dither a 2d matrix.
     /// `P` is the type of pixel ([`u8`], [RGB<f64, f64, f64>]);
     /// S is multiplible and divisble by a **S**CALAR
@@ -44,18 +44,29 @@ pub trait Dither {
     ///
     fn dither<P>(img: Img<P>, mut quantize: impl FnMut(P) -> (P, P)) -> super::Img<P>
     where
-        P: Add<Output = P> + Mul<i16, Output = P> + Div<i16, Output = P> + Copy + Default,
+        P: Add<Output = P> + Mul<f64, Output = P> + Div<f64, Output = P> + Clone + Default,
     {
         let (width, height) = img.size();
 
         let mut output: Vec<P> = vec![P::default(); img.len()];
         let mut spillover: Vec<P> = vec![P::default(); img.len()];
 
+        #[cfg(debug)]
+        let mut last_percent = 0.0;
+
         for y in 0..height {
+            #[cfg(debug)]
+            {
+                let percent = f64::floor((y * width) as f64 / img.len() as f64 * 100.0);
+                if percent > last_percent {
+                    eprint!("\r{:5.3} % complete", percent);
+                    last_percent = percent;
+                }
+            }
             for x in 0..width {
                 let i = (y * width + x) as usize;
 
-                let (quantized, spill) = quantize(img[(x, y)] + spillover[i]);
+                let (quantized, spill) = quantize(img[(x, y)].clone() + spillover[i].clone());
                 output[i] = quantized;
 
                 // add spillover matrices
@@ -64,7 +75,7 @@ pub trait Dither {
                     let i = (((y + dy) * width as isize) + (x + dx)) as usize;
 
                     if let Some(stored_spill) = spillover.get_mut(i) {
-                        *stored_spill = *stored_spill + (spill * mul) / Self::DIV;
+                        *stored_spill = stored_spill.clone() + (spill.clone() * mul) / Self::DIV;
                     }
                 }
             }
@@ -101,6 +112,15 @@ pub struct FloydSteinberg;
 ///           (1/32)
 pub struct Burkes;
 
+///             X   7   5
+///     3   5   7   5   3
+///     1   3   5   3   1
+///
+///        (1/48)
+pub struct JarvisJudiceNinke;
+
+pub struct Sierra3;
+
 #[derive(Debug)]
 pub struct ErrorUnknownDitherer(String);
 impl std::fmt::Display for ErrorUnknownDitherer {
@@ -120,7 +140,9 @@ impl std::str::FromStr for Ditherer {
             "atkinson" => Ditherer::Atkinson,
             "stucki" => Ditherer::Stucki,
             "burkes" => Ditherer::Burkes,
-            s => return Err(ErrorUnknownDitherer(s.to_string())),
+            "jarvis" | "judice" | "ninke" => Ditherer::JarvisJudiceNinke,
+            "sierra" | "sierra3" => Ditherer::Sierra3,
+            _ => return Err(ErrorUnknownDitherer(s.to_string())),
         })
     }
 }
@@ -134,68 +156,124 @@ pub enum Ditherer {
     Stucki,
     /// [Burkes]
     Burkes,
+    /// [JardisJudiceNinke]
+    JarvisJudiceNinke,
+    /// [Sierra3]
+    Sierra3,
 }
 
 impl Ditherer {
     pub fn dither<P>(self, img: Img<P>, quantize: impl FnMut(P) -> (P, P)) -> Img<P>
     where
-        P: Add<Output = P> + Mul<i16, Output = P> + Div<i16, Output = P> + Copy + Default,
+        P: Add<Output = P> + Mul<f64, Output = P> + Div<f64, Output = P> + Clone + Default,
     {
         match self {
             Ditherer::FloydSteinberg => FloydSteinberg::dither(img, quantize),
             Ditherer::Atkinson => Atkinson::dither(img, quantize),
             Ditherer::Burkes => Burkes::dither(img, quantize),
             Ditherer::Stucki => Stucki::dither(img, quantize),
+            Ditherer::JarvisJudiceNinke => JarvisJudiceNinke::dither(img, quantize),
+            Ditherer::Sierra3 => Sierra3::dither(img, quantize),
         }
     }
 }
 impl Dither for Atkinson {
-    const DIV: i16 = 8;
-    const OFFSETS: &'static [(isize, isize, i16)] = &[
-        (1, 0, 1),
-        (2, 0, 1),
+    const DIV: f64 = 8.;
+    const OFFSETS: &'static [(isize, isize, f64)] = &[
+        // (dx, dy, mul)
+        (1, 0, 1.),
+        (2, 0, 1.),
         //
-        (-1, 1, 1),
-        (0, 1, 1),
-        (1, 1, 1),
+        (-1, 1, 1.),
+        (0, 1, 1.),
+        (1, 1, 1.),
         //
-        (0, 2, 1),
+        (0, 2, 1.),
     ];
 }
 
 impl Dither for Burkes {
-    const DIV: i16 = 32;
-    const OFFSETS: &'static [(isize, isize, i16)] = &[
-        (1, 0, 8),
-        (2, 0, 4),
-        (-2, 1, 2),
-        (-1, 1, 4),
-        (0, 1, 8),
-        (1, 1, 4),
-        (2, 1, 2),
+    const DIV: f64 = 32.;
+    const OFFSETS: &'static [(isize, isize, f64)] = &[
+        // (dx, dy, mul)
+        (1, 0, 8.),
+        (2, 0, 4.),
+        //
+        (-2, 1, 2.),
+        (-1, 1, 4.),
+        (0, 1, 8.),
+        (1, 1, 4.),
+        (2, 1, 2.),
     ];
 }
 
 impl Dither for FloydSteinberg {
-    const DIV: i16 = 16;
-    const OFFSETS: &'static [(isize, isize, i16)] = &[(1, 0, 7), (-1, 1, 7), (0, 1, 5), (1, 1, 1)];
+    const DIV: f64 = 16.;
+    const OFFSETS: &'static [(isize, isize, f64)] =
+        &[(1, 0, 7.), (-1, 1, 7.), (0, 1, 5.), (1, 1, 1.)];
 }
 impl Dither for Stucki {
-    const DIV: i16 = 42;
-    const OFFSETS: &'static [(isize, isize, i16)] = &[
-        (1, 0, 8),
-        (2, 0, 4),
-        (-2, 1, 2),
-        (-1, 1, 4),
+    const DIV: f64 = 42.;
+    const OFFSETS: &'static [(isize, isize, f64)] = &[
+        // (dx, dy, mul)
+        (1, 0, 8.),
+        (2, 0, 4.),
         //
-        (0, 1, 8),
-        (1, 1, 4),
-        (2, 1, 2),
-        (-2, 2, 1),
-        (-1, 2, 2),
+        (-2, 1, 2.),
+        (-1, 1, 4.),
+        (0, 1, 8.),
+        (1, 1, 4.),
+        (2, 1, 2.),
         //
-        (0, 2, 4),
-        (1, 2, 2),
-        (2, 2, 1),
+        (-2, 2, 1.),
+        (-1, 2, 2.),
+        (0, 2, 4.),
+        (1, 2, 2.),
+        (2, 2, 1.),
     ];
 }
+
+impl Dither for JarvisJudiceNinke {
+    const DIV: f64 = 48.0;
+    const OFFSETS: &'static [(isize, isize, f64)] = &[
+        // (dx, dy, mul)
+        (1, 0, 7.),
+        (2, 0, 5.),
+        //
+        (-2, 1, 3.),
+        (-1, 1, 5.),
+        (0, 1, 7.),
+        (1, 1, 5.),
+        (2, 1, 3.),
+        //
+        (-2, 2, 1.),
+        (-1, 2, 3.),
+        (0, 2, 5.),
+        (1, 2, 3.),
+        (2, 2, 1.),
+    ];
+}
+
+impl Dither for Sierra3 {
+    const DIV: f64 = 32.;
+    const OFFSETS: &'static [(isize, isize, f64)] = &[
+        // (dx, dy, mul)
+        (1, 0, 5.),
+        (2, 0, 3.),
+        //
+        (-2, 1, 2.),
+        (-1, 1, 4.),
+        (0, 1, 5.),
+        (1, 1, 4.),
+        (2, 1, 2.),
+        (-1, 2, 2.),
+        //
+        (0, 2, 3.),
+        (1, 2, 2.),
+    ];
+}
+//
+//             X   5   3
+//     2   4   5   4   2
+//         2   3   2
+//           (1/32)
