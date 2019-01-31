@@ -4,10 +4,16 @@ Inspired by: <http://www.tannerhelland.com/4660/dithering-eleven-algorithms-sour
 
 ## License: MIT
 
+## CLI help:
+
+```bash
+dither --help
+```
+
 ## usage
 
 ```bash
-dither INPUT OUTPUT [-c] [-v] [--ditherer] [--bit_depth]
+dither INPUT [OUTPUT] [-c] [-v] [--ditherer] [--bit_depth]
 ```
 
 example:
