@@ -128,8 +128,31 @@ impl std::fmt::Display for ErrorUnknownDitherer {
         write!(f, "unknown ditherer: {}", self.0)
     }
 }
+
 impl std::error::Error for ErrorUnknownDitherer {}
 
+const FLOYD: &str = "floyd";
+const ATKINSON: &str = "atkinson";
+const BURKES: &str = "burkes";
+const JARVIS: &str = "jarvis";
+const SIERRA: &str = "sierra3";
+const STUCKI: &str = "stucki";
+impl std::fmt::Display for Ditherer {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                Ditherer::FloydSteinberg => FLOYD,
+                Ditherer::Atkinson => ATKINSON,
+                Ditherer::Burkes => BURKES,
+                Ditherer::JarvisJudiceNinke => JARVIS,
+                Ditherer::Sierra3 => SIERRA,
+                Ditherer::Stucki => STUCKI,
+            }
+        )
+    }
+}
 impl std::str::FromStr for Ditherer {
     type Err = ErrorUnknownDitherer;
     fn from_str(s: &str) -> Result<Self, Self::Err> {

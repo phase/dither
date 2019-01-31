@@ -67,13 +67,15 @@ fn main() -> Result<()> {
 
 fn _main(opts: &Opt) -> Result<()> {
     let debug = |msg: &str| {
-        if opts.debug {
+        if opts.verbose {
             eprintln!("{}", msg);
         }
     };
+
     debug("program start");
     let img: Img<RGB<f64>> = Img::read_png(&opts.input)?;
     let quantize = create_quantize_n_bits_func(opts.bit_depth)?;
+
     let output_img = if opts.color {
         debug("color printing");
         opts.ditherer
@@ -86,8 +88,10 @@ fn _main(opts: &Opt) -> Result<()> {
             .dither(bw_img, quantize)
             .convert_with(RGB::from_chroma_corrected_black_and_white)
     };
-    output_img.save_png(&opts.output)?;
-    debug(&format!("saved to {}", opts.output.to_string_lossy()));
+
+    let output = opts.output_path();
+    output_img.save_png(output.as_ref())?;
+    debug(&format!("saved to {}", output.to_string_lossy()));
     Ok(())
 }
 
