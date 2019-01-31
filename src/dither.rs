@@ -46,37 +46,21 @@ pub trait Dither {
     where
         P: Add<Output = P> + Mul<f64, Output = P> + Div<f64, Output = P> + Clone + Default,
     {
-        let (width, height) = img.size();
+        let width = img.width;
 
-        let mut output: Vec<P> = vec![P::default(); img.len()];
+        let mut output: Vec<P> = Vec::with_capacity(img.len());
         let mut spillover: Vec<P> = vec![P::default(); img.len()];
 
-        #[cfg(debug)]
-        let mut last_percent = 0.0;
+        for (i, p) in img.buf.iter().cloned().enumerate() {
+            let (quantized, spill) = quantize(p + spillover[i].clone());
+            output.push(quantized);
 
-        for y in 0..height {
-            #[cfg(debug)]
-            {
-                let percent = f64::floor((y * width) as f64 / img.len() as f64 * 100.0);
-                if percent > last_percent {
-                    eprint!("\r{:5.3} % complete", percent);
-                    last_percent = percent;
-                }
-            }
-            for x in 0..width {
-                let i = (y * width + x) as usize;
+            // add spillover matrices
+            for (dx, dy, mul) in Self::OFFSETS.iter().cloned() {
+                let j = i as isize + (dy * width as isize) + dx as isize;
 
-                let (quantized, spill) = quantize(img[(x, y)].clone() + spillover[i].clone());
-                output[i] = quantized;
-
-                // add spillover matrices
-                let (x, y) = (x as isize, y as isize);
-                for (dx, dy, mul) in Self::OFFSETS.iter().cloned() {
-                    let i = (((y + dy) * width as isize) + (x + dx)) as usize;
-
-                    if let Some(stored_spill) = spillover.get_mut(i) {
-                        *stored_spill = stored_spill.clone() + (spill.clone() * mul) / Self::DIV;
-                    }
+                if let Some(stored_spill) = spillover.get_mut(j as usize) {
+                    *stored_spill = stored_spill.clone() + (spill.clone() * mul) / Self::DIV;
                 }
             }
         }

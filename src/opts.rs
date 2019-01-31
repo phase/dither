@@ -44,7 +44,7 @@ impl Opt {
                 "{base}_dithered_{dither}_{color}_{depth}.png",
                 base = output_stem,
                 dither = self.ditherer,
-                color = if self.color { "bw" } else { "c" },
+                color = if self.color { "c" } else { "bw" },
                 depth = self.bit_depth,
             )))
         }
