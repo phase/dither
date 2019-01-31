@@ -2,9 +2,11 @@ use super::dither::Dither;
 use super::*;
 use rand::prelude::*;
 use std::path::PathBuf;
+
 #[test]
 fn test_save_and_load() {
     let img = test_image();
+    dbg!(&img);
     let mut output = std::env::current_dir().unwrap();
 
     output.push("save_load_test.png");
@@ -16,7 +18,7 @@ fn test_save_and_load() {
 
 fn test_image_path() -> PathBuf {
     let mut input = std::env::current_dir().unwrap();
-    input.push("bliss.png");
+    input.push("bunny.png");
     input
 }
 fn test_image() -> Img<RGB<u8>> {
