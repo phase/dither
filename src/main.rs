@@ -80,7 +80,7 @@ fn _main(opts: &Opt) -> Result<()> {
             if opts.verbose {
                 eprintln!("1bit color mode: {}", color)
             }
-            let Palette { front, back } = color.into();
+            let (front, back) = color::Mode::custom_palette_from_cga(color);
             let bw_img = img.convert_with(|rgb| rgb.to_chroma_corrected_black_and_white());
             opts.ditherer
                 .dither(bw_img, quantize)

@@ -1,5 +1,4 @@
 mod cga;
-mod hex;
 mod palette;
 mod rgb;
 pub use self::cga::CGA;
@@ -17,16 +16,10 @@ pub enum Mode {
 }
 
 impl Mode {
-    fn custom_palette_from_cga(cga: CGA) -> Self {
+    pub fn custom_palette_from_cga(cga: CGA) -> (RGB<u8>, RGB<u8>) {
         match cga {
-            super::CGA::Black => Mode::CustomPalette {
-                front: RGB(0, 0, 0),
-                back: RGB(255, 255, 255),
-            },
-            cga => Mode::CustomPalette {
-                front: unsafe { RGB::from_hex(cga.to_hex()) },
-                back: RGB(0, 0, 0),
-            },
+            CGA::Black => (RGB(0, 0, 0), RGB(255, 255, 255)),
+            cga => (unsafe { RGB::from_hex(cga.to_hex()) }, RGB(0, 0, 0)),
         }
     }
 }
@@ -105,6 +98,7 @@ fn test_parse() {
         ("color", Ok(Mode::Color)),
         ("cga", Ok(Mode::CGA)),
         ("WHITE", Ok(Mode::SingleColor(CGA::White))),
+        ("blue", Ok(Mode::SingleColor(CGA::Blue))),
         ("LigHT_CYAN", Ok(Mode::SingleColor(CGA::LightCyan))),
         (
             "0x00ffab 0xaa0000",
