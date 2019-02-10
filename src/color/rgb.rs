@@ -1,8 +1,8 @@
 use std::ops::{Add, Div, Mul, Neg, Rem, Sub};
-
 #[derive(Default, Debug, PartialEq, Eq, Clone)]
 pub struct RGB<N>(pub N, pub N, pub N);
 
+use super::super::clamp_f64_to_u8;
 impl Copy for RGB<u8> {}
 
 impl<P> RGB<P> {
@@ -23,61 +23,6 @@ impl<P> RGB<P> {
             let remainder = RGB(r_rem, g_rem, b_rem);
             (quotient, remainder)
         }
-    }
-}
-
-#[derive(Copy, Clone, PartialEq, Debug, Eq)]
-pub struct Palette {
-    pub front: RGB<u8>,
-    pub back: RGB<u8>,
-}
-
-#[derive(Debug)]
-pub enum PaletteError {
-    UnknownColor(u32),
-    CouldNotParse(std::num::ParseIntError),
-    NotPair,
-}
-impl std::fmt::Display for PaletteError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            PaletteError::UnknownColor(n) => write!(
-                f,
-                "unknown color {:x} must be between 0x00 and 0xFF_FF_FF",
-                n
-            ),
-            PaletteError::CouldNotParse(err) => err.fmt(f),
-            PaletteError::NotPair => write!(f, "could not parse palette input; need to supply a pair of hexadecimal numbers between 0x00 and 0xFF_FF_FF, eg, \"0xff0000 0x00aa_00\"")
-        }
-    }
-}
-
-impl std::error::Error for PaletteError {}
-impl std::str::FromStr for Palette {
-    type Err = PaletteError;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let parse = |s| match u32::from_str_radix(s, 16) {
-            Err(err) => Err(PaletteError::CouldNotParse(err)),
-            Ok(n) if n > 0x_FF_FF_FF => Err(PaletteError::UnknownColor(n)),
-            Ok(n) => Ok(RGB::from_hex(n)),
-        };
-        let mut it = s.split_whitespace();
-        if let (Some(front), Some(back)) = (it.next(), it.next()) {
-            Ok(Palette {
-                front: parse(front)?,
-                back: parse(back)?,
-            })
-        } else {
-            Err(PaletteError::NotPair)
-        }
-    }
-}
-
-pub fn clamp_f64_to_u8(n: f64) -> u8 {
-    match n {
-        n if n > 255.0 => 255,
-        n if n < 0.0 => 0,
-        n => n as u8,
     }
 }
 
@@ -136,7 +81,8 @@ impl<N: Neg<Output = N>> Neg for RGB<N> where {
 
 impl From<super::CGA> for RGB<u8> {
     fn from(cga: super::CGA) -> Self {
-        Self::from_hex(cga.to_hex())
+        // unsafe is OK; we know that all CGAs are proper RGB vals
+        unsafe { RGB::from_hex(cga.to_hex()) }
     }
 }
 
@@ -178,12 +124,23 @@ impl RGB<f64> {
 }
 
 impl RGB<u8> {
+    /// convert a hexidecimal code to the appropriate RGB value, silently discarding the highest 8 bits, if they exist.
+    /// Proper use should ensure that the input is less than or equal to `0xFFFFFF`
+    pub const unsafe fn from_hex(hex: u32) -> Self {
+        super::RGB((hex >> 16) as u8, (hex >> 8) as u8, hex as u8)
+    }
     pub fn from_chroma_corrected_black_and_white(p: f64) -> Self {
         RGB(clamp_f64_to_u8(p), clamp_f64_to_u8(p), clamp_f64_to_u8(p))
     }
 
-    // --- CONVERSIONS  ---
-    const fn from_hex(hex: u32) -> Self {
-        RGB((hex >> 16) as u8, (hex >> 8) as u8, hex as u8)
+    pub fn to_hex(self) -> u32 {
+        let RGB(r, g, b) = self;
+        ((r as u32) << 16) + ((g as u32) << 8) + b as u32
+    }
+}
+
+impl std::fmt::LowerHex for RGB<u8> {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{:x}", self.to_hex())
     }
 }

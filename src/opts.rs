@@ -15,10 +15,6 @@ pub struct Opt {
     /// `TIFF`
     #[structopt(name = "input", parse(from_os_str))]
     pub input: PathBuf,
-    /// Whether to use color. Default is false.
-    ///  Mutually exclusive with the palette ("-p, --palette") option.
-    #[structopt(short = "c", long = "color")]
-    pub color: bool,
 
     /// Color depth. Must be between 1 and 8.
     #[structopt(short = "b", long = "bit_depth", default_value = "1")]
@@ -36,11 +32,13 @@ pub struct Opt {
     #[structopt(short = "d", long = "dither", default_value = "floyd")]
     pub ditherer: super::Ditherer,
 
-    // Color palette to use in black and white mode; input must be a pair of hexademical numbers,
-    // the first being the foreground, the second the background.
-    // i.e, "0xFF0000, 0x000000))". Mutually exclusive with the color ("-c, --color") option.
-    #[structopt(short = "p", long = "palette")]
-    pub palette: Option<super::Palette>,
+    ///Color mode to use.
+    /// Options are "color", (all colors with specified bit depth)
+    /// ("bw" [default], "green", "cyan") -> one-bit in specified color. bit depth must equal 1.
+    /// ("0xZZZZZZ 0xZZZZZZZ") -> user specified 1bit user color palette; where the first is foreground in hexidecimal and the second is background. bit depth must equal 1.
+    /// "cga" -> sixteen-color CGA. ignores bit depth; casues error on bit depth > 1
+    #[structopt(short = "c", long = "color", default_value = "bw")]
+    pub color_mode: super::color::Mode,
 }
 
 impl Opt {
@@ -57,7 +55,7 @@ impl Opt {
                 "{base}_dithered_{dither}_{color}_{depth}.png",
                 base = output_stem,
                 dither = self.ditherer,
-                color = if self.color { "c" } else { "bw" },
+                color = self.color_mode,
                 depth = self.bit_depth,
             )))
         }

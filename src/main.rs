@@ -4,21 +4,26 @@
 
 pub mod dither;
 
-mod cga;
+pub mod color;
 mod error;
 mod img;
 mod opts;
-mod rgb;
 #[cfg(test)]
 mod tests;
 
+pub fn clamp_f64_to_u8(n: f64) -> u8 {
+    match n {
+        n if n > 255.0 => 255,
+        n if n < 0.0 => 0,
+        n => n as u8,
+    }
+}
 pub use self::error::{Error, Result};
 use self::{
-    cga::CGA,
+    color::{Palette, CGA, RGB},
     dither::Ditherer,
     img::Img,
     opts::Opt,
-    rgb::{Palette, RGB},
 };
 
 use structopt::StructOpt;
@@ -40,24 +45,49 @@ fn _main(opts: &Opt) -> Result<()> {
         Img::<RGB<u8>>::load(&opts.input)?.convert_with(|rgb| rgb.convert_with(f64::from));
     let quantize = create_quantize_n_bits_func(opts.bit_depth)?;
 
-    let output_img = match (opts.color, opts.palette) {
-        (true, Some(_)) => return Err(Error::IncompatibleOptions),
-        (false, Some(_)) if opts.bit_depth > 1 => return Err(Error::IncompatibleOptions),
-        (true, None) => {
-            debug("color printing");
+    let output_img = match opts.color_mode {
+        color::Mode::CGA | color::Mode::SingleColor(_) | color::Mode::CustomPalette(_)
+            if opts.bit_depth > 1 =>
+        {
+            return Err(Error::IncompatibleOptions);
+        }
+
+        color::Mode::Color => {
+            debug("color mode");
             opts.ditherer
                 .dither(img, RGB::map_across(quantize))
-                .convert_with(|rgb| rgb.convert_with(rgb::clamp_f64_to_u8))
+                .convert_with(|rgb| rgb.convert_with(clamp_f64_to_u8))
         }
-        (false, None) => {
+
+        color::Mode::CGA => {
+            debug("cga mode");
+            opts.ditherer
+                .dither(img, CGA::quantize)
+                .convert_with(|rgb| rgb.convert_with(clamp_f64_to_u8))
+        }
+
+        color::Mode::BlackAndWhite => {
             debug("black and white mode!");
             let bw_img = img.convert_with(|rgb| rgb.to_chroma_corrected_black_and_white());
             opts.ditherer
                 .dither(bw_img, quantize)
                 .convert_with(RGB::from_chroma_corrected_black_and_white)
         }
-        (false, Some(Palette { front, back })) => {
-            debug("paletted 1bit printing");
+
+        color::Mode::SingleColor(color) => {
+            if opts.verbose {
+                eprintln!("1bit color mode: {}", color)
+            }
+            let Palette { front, back } = color.into();
+            let bw_img = img.convert_with(|rgb| rgb.to_chroma_corrected_black_and_white());
+            opts.ditherer
+                .dither(bw_img, quantize)
+                .convert_with(RGB::from_chroma_corrected_black_and_white)
+                .convert_with(|rgb| if rgb == RGB(0, 0, 0) { front } else { back })
+        }
+
+        color::Mode::CustomPalette(Palette { front, back }) => {
+            debug("paletted 1bit mode");
             let bw_img = img.convert_with(|rgb| rgb.to_chroma_corrected_black_and_white());
             opts.ditherer
                 .dither(bw_img, quantize)

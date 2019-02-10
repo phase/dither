@@ -3,7 +3,7 @@ pub enum Error {
     IO(std::io::Error),
     Image(image::ImageError),
     BadBitDepth(u8),
-    Palette(super::rgb::PaletteError),
+    Palette(super::color::PaletteError),
     IncompatibleOptions,
 }
 
