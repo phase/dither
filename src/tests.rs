@@ -31,7 +31,7 @@ impl Dither for NoOpDither {
     const OFFSETS: &'static [(isize, isize, f64)] = &[];
 }
 #[test]
-fn test_no_op() {
+fn test_dither_no_op() {
     fn no_op(p: RGB<f64>) -> (RGB<f64>, RGB<f64>) {
         (p, RGB::default())
     }

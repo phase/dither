@@ -1,5 +1,5 @@
 //! # Dither
-//!s
+//!
 //! Inspired by: <http://www.tannerhelland.com/4660/dithering-eleven-algorithms-source-code/>
 
 pub mod dither;
@@ -22,7 +22,7 @@ pub fn clamp_f64_to_u8(n: f64) -> u8 {
 }
 pub use self::error::{Error, Result};
 use self::{
-    color::{Palette, CGA, RGB},
+    color::{CGA, RGB},
     dither::Ditherer,
     img::Img,
     opts::Opt,
@@ -48,9 +48,7 @@ fn _main(opts: &Opt) -> Result<()> {
     let quantize = create_quantize_n_bits_func(opts.bit_depth)?;
 
     let output_img = match opts.color_mode {
-        color::Mode::CGA | color::Mode::SingleColor(_) | color::Mode::CustomPalette { .. }
-            if opts.bit_depth > 1 =>
-        {
+        color::Mode::CGA | color::Mode::CustomPalette { .. } if opts.bit_depth > 1 => {
             return Err(Error::IncompatibleOptions);
         }
 
@@ -78,14 +76,24 @@ fn _main(opts: &Opt) -> Result<()> {
 
         color::Mode::SingleColor(color) => {
             if opts.verbose {
-                eprintln!("1bit color mode: {}", color)
+                eprintln!("single_color mode: {}", color)
             }
-            let (front, back) = color::Mode::custom_palette_from_cga(color);
+            let (front, _) = color::Mode::custom_palette_from_cga(color);
+            dbg!(&front);
+
             let bw_img = img.convert_with(|rgb| rgb.to_chroma_corrected_black_and_white());
-            opts.ditherer
+            let RGB(r, g, b) = front;
+            let img = opts
+                .ditherer
                 .dither(bw_img, quantize)
-                .convert_with(RGB::from_chroma_corrected_black_and_white)
-                .convert_with(|rgb| if rgb == RGB(0, 0, 0) { front } else { back })
+                .convert_with(|x: f64| {
+                    RGB(
+                        clamp_f64_to_u8(f64::from(r) / 255. * x),
+                        clamp_f64_to_u8(f64::from(g) / 255. * x),
+                        clamp_f64_to_u8(f64::from(b) / 255. * x),
+                    )
+                });
+            img
         }
 
         color::Mode::CustomPalette { front, back } => {

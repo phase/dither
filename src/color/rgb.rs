@@ -139,6 +139,11 @@ impl RGB<u8> {
     }
 }
 
+#[test]
+fn test_hex_conv() {
+    assert_eq!(unsafe { RGB::from_hex(0xff_bb_aa) }.to_hex(), 0xff_bb_aa)
+}
+
 impl std::fmt::LowerHex for RGB<u8> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{:x}", self.to_hex())

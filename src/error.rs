@@ -24,6 +24,12 @@ impl std::fmt::Display for Error {
     }
 }
 
+impl From<super::color::Error> for Error {
+    fn from(err: super::color::Error) -> Self {
+        Error::Color(err)
+    }
+}
+
 impl std::error::Error for Error {}
 impl From<std::io::Error> for Error {
     fn from(err: std::io::Error) -> Self {

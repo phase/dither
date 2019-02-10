@@ -1,8 +1,7 @@
 mod cga;
-mod palette;
 mod rgb;
 pub use self::cga::CGA;
-pub use self::palette::Palette;
+
 pub use self::rgb::RGB;
 use regex::Regex;
 use std::str::FromStr;
@@ -13,6 +12,13 @@ pub enum Mode {
     CGA,
     Color,
     BlackAndWhite,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum Error {
+    UnknownOption,
+    BadPaletteColor(u32),
+    CouldNotParsePalette(std::num::ParseIntError),
 }
 
 impl Mode {
@@ -35,31 +41,7 @@ impl std::fmt::Display for Mode {
         }
     }
 }
-#[derive(Debug, PartialEq, Eq)]
-pub enum Error {
-    UnknownOption,
-    BadPaletteColor(u32),
-    CouldNotParsePalette(std::num::ParseIntError),
-}
 
-impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        match self {
-            Error::UnknownOption => write!(f, "unknown color option"),
-            Error::BadPaletteColor(n) => write!(
-                f,
-                "palette colors must be between 0 and 0xffffff, but had {:x}",
-                n
-            ),
-            Error::CouldNotParsePalette(err) => write!(f, "could not parse palette: {}", err),
-        }
-    }
-}
-impl From<std::num::ParseIntError> for Error {
-    fn from(err: std::num::ParseIntError) -> Self {
-        Error::CouldNotParsePalette(err)
-    }
-}
 impl FromStr for Mode {
     type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -90,6 +72,24 @@ impl FromStr for Mode {
     }
 }
 
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            Error::UnknownOption => write!(f, "unknown color option"),
+            Error::BadPaletteColor(n) => write!(
+                f,
+                "palette colors must be between 0 and 0xffffff, but had {:x}",
+                n
+            ),
+            Error::CouldNotParsePalette(err) => write!(f, "could not parse palette: {}", err),
+        }
+    }
+}
+impl From<std::num::ParseIntError> for Error {
+    fn from(err: std::num::ParseIntError) -> Self {
+        Error::CouldNotParsePalette(err)
+    }
+}
 #[test]
 fn test_parse() {
     let tt: Vec<(&str, Result<Mode, Error>)> = vec![

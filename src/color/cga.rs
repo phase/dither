@@ -70,6 +70,19 @@ impl CGA {
     }
 }
 
+#[test]
+fn test_quantize() {
+    let cyan: RGB<f64> = RGB::from(CGA::Cyan);
+    let offset = RGB(1.2, 2.2, -3.1);
+    let nearly_cyan = cyan.clone() + offset.clone();
+
+    let (got_quantized, RGB(dr, dg, db)) = CGA::quantize(nearly_cyan);
+    assert_eq!(got_quantized, cyan);
+
+    let want_abs_err = 1.2 + 2.2 + 3.1;
+    let got_abs_err = dr.abs() + dg.abs() + db.abs();
+    assert!(f64::abs(got_abs_err - want_abs_err) < 1e-9); // need to account for floating point error
+}
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct UnknownCGAColorError;
 
