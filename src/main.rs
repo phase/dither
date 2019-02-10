@@ -10,6 +10,8 @@ mod img;
 mod opts;
 #[cfg(test)]
 mod tests;
+#[macro_use]
+extern crate lazy_static;
 
 pub fn clamp_f64_to_u8(n: f64) -> u8 {
     match n {
@@ -46,7 +48,7 @@ fn _main(opts: &Opt) -> Result<()> {
     let quantize = create_quantize_n_bits_func(opts.bit_depth)?;
 
     let output_img = match opts.color_mode {
-        color::Mode::CGA | color::Mode::SingleColor(_) | color::Mode::CustomPalette(_)
+        color::Mode::CGA | color::Mode::SingleColor(_) | color::Mode::CustomPalette { .. }
             if opts.bit_depth > 1 =>
         {
             return Err(Error::IncompatibleOptions);
@@ -86,7 +88,7 @@ fn _main(opts: &Opt) -> Result<()> {
                 .convert_with(|rgb| if rgb == RGB(0, 0, 0) { front } else { back })
         }
 
-        color::Mode::CustomPalette(Palette { front, back }) => {
+        color::Mode::CustomPalette { front, back } => {
             debug("paletted 1bit mode");
             let bw_img = img.convert_with(|rgb| rgb.to_chroma_corrected_black_and_white());
             opts.ditherer

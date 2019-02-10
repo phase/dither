@@ -135,7 +135,7 @@ impl RGB<u8> {
 
     pub fn to_hex(self) -> u32 {
         let RGB(r, g, b) = self;
-        ((r as u32) << 16) + ((g as u32) << 8) + b as u32
+        ((u32::from(r)) << 16) + (u32::from(g) << 8) + u32::from(b)
     }
 }
 

@@ -3,7 +3,7 @@ pub enum Error {
     IO(std::io::Error),
     Image(image::ImageError),
     BadBitDepth(u8),
-    Palette(super::color::PaletteError),
+    Color(super::color::Error),
     IncompatibleOptions,
 }
 
@@ -15,7 +15,7 @@ impl std::fmt::Display for Error {
             Error::Image(err) => write!(f, "image library error: {}", err),
             Error::IO(err) => write!(f, "io error: {}", err),
             Error::BadBitDepth(n) => write!(f, "bit depth must be between 1 and 7, but was {}", n),
-            Error::Palette(err) => err.fmt(f),
+            Error::Color(err) => err.fmt(f),
             Error::IncompatibleOptions => write!(
                 f,
                 "the palette (-p, --palette) option is mututally exclusive with the bit depth and color options."
