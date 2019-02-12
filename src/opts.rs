@@ -6,19 +6,22 @@ pub struct Opt {
     /// Provide verbose debug information. Default is false.
     #[structopt(short = "v", long = "verbose")]
     pub verbose: bool,
-    /// Input file: currently, only .png is supported.
+    /// Input file. Supported file types:
+    /// `PNG`
+    /// `JPEG`
+    /// `GIF`
+    /// `BMP`
+    /// `ICO`
+    /// `TIFF`
     #[structopt(name = "input", parse(from_os_str))]
     pub input: PathBuf,
-    /// Whether to use color. Default is false.
-    #[structopt(short = "c", long = "color")]
-    pub color: bool,
 
     /// Color depth. Must be between 1 and 8.
     #[structopt(short = "b", long = "bit_depth", default_value = "1")]
     pub bit_depth: u8,
 
-    /// Output file: will be written to as a .png. If left empty,
-    /// the input file will be appended with the follwing information:
+    /// Output file: will be written to as a .png or .jpg (inferred from file extension) If left empty,
+    /// it will be saved to a .png with the follwing information:
     /// $BASE_dithered_$DITHER_$COLOR_$DEPTH
     /// `$dither bunny.png -c --dither=atkinson --bit-depth=2` will save to bunny_atkinson_c_2.png
     #[structopt(name = "output", parse(from_os_str))]
@@ -28,6 +31,14 @@ pub struct Opt {
     /// "floyd", "atkinson", "stucki", "burkes","jarvis"
     #[structopt(short = "d", long = "dither", default_value = "floyd")]
     pub ditherer: super::Ditherer,
+
+    ///Color mode to use.
+    /// Options are "color", (all colors with specified bit depth)
+    /// ("bw" [default], "green", "cyan") -> one-bit in specified color. bit depth must equal 1.
+    /// ("0xZZZZZZ 0xZZZZZZZ") -> user specified 1bit user color palette; where the first is foreground in hexidecimal and the second is background. bit depth must equal 1.
+    /// "cga" -> sixteen-color CGA. ignores bit depth; casues error on bit depth > 1
+    #[structopt(short = "c", long = "color", default_value = "bw")]
+    pub color_mode: super::color::Mode,
 }
 
 impl Opt {
@@ -38,13 +49,13 @@ impl Opt {
             let output_stem = self
                 .input
                 .file_stem()
-                .unwrap_or_else(|| self.input.as_ref())
+                .unwrap_or_else(|| self.input.as_ref()) // no extension; use the whole path
                 .to_string_lossy();
             std::borrow::Cow::Owned(std::path::PathBuf::from(format!(
                 "{base}_dithered_{dither}_{color}_{depth}.png",
                 base = output_stem,
                 dither = self.ditherer,
-                color = if self.color { "c" } else { "bw" },
+                color = self.color_mode,
                 depth = self.bit_depth,
             )))
         }

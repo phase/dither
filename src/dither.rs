@@ -46,12 +46,10 @@ pub trait Dither {
     where
         P: Add<Output = P> + Mul<f64, Output = P> + Div<f64, Output = P> + Clone + Default,
     {
-        let width = img.width;
-
         let mut output: Vec<P> = Vec::with_capacity(img.len());
         let mut spillover: Vec<P> = vec![P::default(); img.len()];
-
-        for (i, p) in img.buf.iter().cloned().enumerate() {
+        let Img { buf, width } = img;
+        for (i, p) in buf.into_iter().enumerate() {
             let (quantized, spill) = quantize(p + spillover[i].clone());
             output.push(quantized);
 
@@ -66,6 +64,22 @@ pub trait Dither {
         }
         Img { buf: output, width }
     }
+}
+
+#[derive(Copy, Clone, PartialEq, Debug, Eq)]
+pub enum Ditherer {
+    /// [FloydSteinberg]
+    FloydSteinberg,
+    /// [Atkinson]
+    Atkinson,
+    /// [Stucki]
+    Stucki,
+    /// [Burkes]
+    Burkes,
+    /// [JardisJudiceNinke]
+    JarvisJudiceNinke,
+    /// [Sierra3]
+    Sierra3,
 }
 
 // Stucki Dithering
@@ -107,13 +121,6 @@ pub struct Sierra3;
 
 #[derive(Debug)]
 pub struct ErrorUnknownDitherer(String);
-impl std::fmt::Display for ErrorUnknownDitherer {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "unknown ditherer: {}", self.0)
-    }
-}
-
-impl std::error::Error for ErrorUnknownDitherer {}
 
 const FLOYD: &str = "floyd";
 const ATKINSON: &str = "atkinson";
@@ -152,21 +159,6 @@ impl std::str::FromStr for Ditherer {
             _ => return Err(ErrorUnknownDitherer(s.to_string())),
         })
     }
-}
-#[derive(Copy, Clone, PartialEq, Debug, Eq)]
-pub enum Ditherer {
-    /// [FloydSteinberg]
-    FloydSteinberg,
-    /// [Atkinson]
-    Atkinson,
-    /// [Stucki]
-    Stucki,
-    /// [Burkes]
-    Burkes,
-    /// [JardisJudiceNinke]
-    JarvisJudiceNinke,
-    /// [Sierra3]
-    Sierra3,
 }
 
 impl Ditherer {
@@ -284,3 +276,11 @@ impl Dither for Sierra3 {
 //     2   4   5   4   2
 //         2   3   2
 //           (1/32)
+
+impl std::fmt::Display for ErrorUnknownDitherer {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "unknown ditherer: {}", self.0)
+    }
+}
+
+impl std::error::Error for ErrorUnknownDitherer {}

@@ -6,13 +6,12 @@ use std::path::PathBuf;
 #[test]
 fn test_save_and_load() {
     let img = test_image();
-    dbg!(&img);
     let mut output = std::env::current_dir().unwrap();
 
     output.push("save_load_test.png");
-    img.clone().save_png(&output).unwrap();
+    img.clone().save(&output).unwrap();
 
-    assert_eq!(img, Img::read_png(&output).unwrap());
+    assert_eq!(img, Img::load(&output).unwrap());
     std::fs::remove_file(output).unwrap();
 }
 
@@ -22,7 +21,7 @@ fn test_image_path() -> PathBuf {
     input
 }
 fn test_image() -> Img<RGB<u8>> {
-    Img::read_png(test_image_path()).unwrap()
+    Img::load(test_image_path()).unwrap()
 }
 /// No Op ditherer; doesn't do anything;
 struct NoOpDither;
@@ -32,7 +31,7 @@ impl Dither for NoOpDither {
     const OFFSETS: &'static [(isize, isize, f64)] = &[];
 }
 #[test]
-fn test_no_op() {
+fn test_dither_no_op() {
     fn no_op(p: RGB<f64>) -> (RGB<f64>, RGB<f64>) {
         (p, RGB::default())
     }

@@ -1,7 +1,5 @@
 use super::Result;
 use super::RGB;
-use std::fs::File;
-use std::io;
 use std::path::Path;
 /// A rectangular image on N pixels.
 #[derive(Clone, Debug, PartialEq)]
@@ -38,29 +36,23 @@ impl<P> Img<P> {
 }
 
 impl<N: From<u8>> Img<RGB<N>> {
-    pub fn read_png<P: AsRef<Path>>(path: P) -> Result<Img<RGB<N>>> {
-        let decoder = png::Decoder::new(File::open(path)?);
-        let (info, mut reader) = decoder.read_info()?;
-        let mut raw_buf = vec![0; info.buffer_size()];
-        reader.next_frame(&mut raw_buf)?;
-        let mut bytes = raw_buf.into_iter();
-        let mut buf = Vec::with_capacity(bytes.len() / 3);
-        while let (Some(r), Some(g), Some(b)) = (bytes.next(), bytes.next(), bytes.next()) {
-            buf.push(RGB(N::from(r), N::from(g), N::from(b)))
-        }
-        let width = info.width;
-        Ok(Img { buf, width })
+    pub fn load<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let img = image::open(path)?.to_rgb();
+
+        Ok(Img {
+            buf: img.pixels().map(|p| RGB::from(p.data)).collect(),
+            width: img.width(),
+        })
     }
 }
 
-impl Img<RGB<f64>> {
-    pub fn save_png<P: AsRef<Path>>(self, path: P) -> Result<()> {
-        self.convert_with(|p| p.convert_with(super::rgb::clamp_f64_to_u8))
-            .save_png(path)?;
+impl Img<RGB<u8>> {
+    pub fn save<P: AsRef<Path>>(self, path: P) -> Result<()> {
+        let height = self.buf.len() as u32 / self.width;
+        let buf = image::RgbImage::from_raw(self.width, height, self.raw_buf()).unwrap();
+        buf.save(path)?;
         Ok(())
     }
-}
-impl Img<RGB<u8>> {
     /// the raw_buf flattens out each RGB triplet;
     /// ```
     /// use dither::img::*;
@@ -75,23 +67,6 @@ impl Img<RGB<u8>> {
             raw_buf.push(b);
         }
         raw_buf
-    }
-
-    /// save an 8-bit color image to a PNG at at the given path, creating or truncating the file if necessary
-    pub fn save_png<P: AsRef<Path>>(self, path: P) -> io::Result<()> {
-        use png::HasParameters;
-        let (width, height) = self.size();
-        let file = std::fs::OpenOptions::new()
-            .create(true)
-            .write(true)
-            .truncate(true)
-            .open(path)?;
-        let w = io::BufWriter::new(file);
-        let mut encoder = png::Encoder::new(w, width, height);
-        encoder.set(png::ColorType::RGB).set(png::BitDepth::Eight);
-        let mut writer = encoder.write_header().unwrap();
-        writer.write_image_data(&self.raw_buf()).unwrap();
-        Ok(())
     }
 }
 
