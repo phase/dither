@@ -6,6 +6,7 @@ pub use self::rgb::RGB;
 use regex::Regex;
 use std::str::FromStr;
 #[derive(Clone, Debug, PartialEq, Eq)]
+/// Mode is the color mode the program runs in. Corresponds to option [super::Opt] `--color`
 pub enum Mode {
     CustomPalette { front: RGB<u8>, back: RGB<u8> },
     SingleColor(CGA),
@@ -15,29 +16,23 @@ pub enum Mode {
 }
 
 #[derive(Debug, PartialEq, Eq)]
+/// An error handling a color
 pub enum Error {
     UnknownOption,
     BadPaletteColor(u32),
     CouldNotParsePalette(std::num::ParseIntError),
 }
 
-impl Mode {
-    pub fn custom_palette_from_cga(cga: CGA) -> (RGB<u8>, RGB<u8>) {
-        match cga {
-            CGA::Black => (RGB(0, 0, 0), RGB(255, 255, 255)),
-            cga => (unsafe { RGB::from_hex(cga.to_hex()) }, RGB(0, 0, 0)),
-        }
-    }
-}
-
 impl std::fmt::Display for Mode {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            Mode::Color => write!(f, "mode_color"),
-            Mode::CGA => write!(f, "mode_cga"),
-            Mode::SingleColor(color) => write!(f, "mode_1bit_{}", color),
-            Mode::BlackAndWhite => write!(f, "mode_bw"),
-            Mode::CustomPalette { front, back } => write!(f, "mode_{:x}_{:x}", front, back),
+            Mode::Color => write!(f, "color"),
+            Mode::CGA => write!(f, "cga"),
+            Mode::SingleColor(color) => write!(f, "single_color_{}", color),
+            Mode::BlackAndWhite => write!(f, "bw"),
+            Mode::CustomPalette { front, back } => {
+                write!(f, "custom_palette_{:x}_{:x}", front, back)
+            }
         }
     }
 }
@@ -49,7 +44,7 @@ impl FromStr for Mode {
             static ref PALETTE_RE: Regex = Regex::new("0x([0-9a-fA-F]+) 0x([0-9a-fA-F]+)").unwrap();
         }
         match s.to_lowercase().as_ref() {
-            "bw" => Ok(Mode::BlackAndWhite),
+            "white" | "black" | "bw" => Ok(Mode::BlackAndWhite),
             "c" | "color" => Ok(Mode::Color),
             "cga" => Ok(Mode::CGA),
             color if color.parse::<CGA>().is_ok() => {
@@ -97,7 +92,7 @@ fn test_parse() {
         ("c", Ok(Mode::Color)),
         ("color", Ok(Mode::Color)),
         ("cga", Ok(Mode::CGA)),
-        ("WHITE", Ok(Mode::SingleColor(CGA::White))),
+        ("RED", Ok(Mode::SingleColor(CGA::Red))),
         ("blue", Ok(Mode::SingleColor(CGA::Blue))),
         ("LigHT_CYAN", Ok(Mode::SingleColor(CGA::LightCyan))),
         (
