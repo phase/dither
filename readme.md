@@ -2,7 +2,9 @@
 
 Inspired by: <http://www.tannerhelland.com/4660/dithering-eleven-algorithms-source-code/>
 
-no dithering: ![bunny_no_dither](bunny.png) one_bit black and white floyd_steinberg dithering![bunny_floyd_bw_1](bunny_dithered_floyd_bw_1.png) CGA 16-color mode, sierra 3 dithering: ![bunny_sierra_cga](bunny_dithered_sierra3_cga_1.png)
+- no dithering: ![bunny_no_dither](bunny.png)
+- one_bit black and white floyd_steinberg dithering ![bunny_floyd_bw_1](bunny_dithered_floyd_bw_1.png)
+- CGA 16-color mode, sierra 3 dithering: ![bunny_sierra_cga](bunny_dithered_sierra3_cga_1.png)
 
 ## License: MIT
 
@@ -15,7 +17,7 @@ dither --help
 ## usage
 
 ```bash
-dither INPUT [OUTPUT] [-v] [--ditherer] [--color] [--depth]
+dither INPUT [OUTPUT] [-v] [--dither] [--color] [--depth]
 ```
 
 example:
