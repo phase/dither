@@ -1,15 +1,39 @@
+//! Logic for dithering a loaded, preprocessed [Img][crate::img::Img].
+//! See [tanner helland's excellent writeup on dithering algorithms](http://www.tannerhelland.com/4660/dithering-eleven-algorithms-source-code/) for details.
 use super::Img;
 use std::ops::{Add, Div, Mul};
 
-/// A type of Dither. Available dithers are [Stucki], [Atkinson], [FloydSteinberg], [Burkes], [JarvisJudiceNinke], [Sierra3].
+/// dither a 2d matrix.
+/// `P`  is the type of pixel; in practice, it is either [f64] or [`RGB<f64>`][RGB]
+pub trait Dither<P> {
+    fn dither(&self, img: Img<P>, quantize: impl FnMut(P) -> (P, P)) -> Img<P>;
+}
+/// A type of Dither. See the documentation for the constants (i.e, [ATKINSON]) for the dither matrices themselves.
+/// A ditherer carries error from quantiation to nearby pixels after dividing by `div` and multiplying by the given scalar in offset; "spreading" the error,
+/// eg, take floyd-steinberg dithering: `div=16`
+/// - ` . x   7 `
+/// - ` 7 5  1`
+///
+/// Suppose we have an grayscale image where the `f64` pixel "`p`"" at `(x=3, y=0)` is 100., and we quantize to black (0.0) and white(255.0)
+/// The ditherer sets `p=0` and has a carried error of 100.
+/// The spread error is then:
+/// -   ` . ----  . ---    43.75`
+/// -   `43.75   31.25   6.25`
+///
+///
 /// See [tanner helland's excellent writeup on dithering algorithms](http://www.tannerhelland.com/4660/dithering-eleven-algorithms-source-code/)
 /// for details.
 #[derive(Clone, Debug)]
 pub struct Ditherer<'a> {
     div: f64,
+    /// offsets represents a triplet (dx, dy, mul)
     offsets: &'a [(isize, isize, f64)],
     name: Option<&'a str>,
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+/// An unknown ditherer name during parsing.
+pub struct ErrorUnknownDitherer(String);
 
 impl<'a> Ditherer<'a> {
     pub const fn new(div: f64, offsets: &'a [(isize, isize, f64)]) -> Self {
@@ -21,19 +45,12 @@ impl<'a> Ditherer<'a> {
     }
 }
 
-pub trait Dither<P> {
-    fn dither(&self, img: Img<P>, quantize: impl FnMut(P) -> (P, P)) -> Img<P>;
-}
-
 impl<'a, P> Dither<P> for Ditherer<'a>
 where
     P: Add<Output = P> + Mul<f64, Output = P> + Div<f64, Output = P> + Clone + Default,
 {
-    /// dither a 2d matrix.
-    /// `P` is the type of pixel ([`u8`], [RGB<f64, f64, f64>]);
-    /// S is multiplible and divisble by a **S**CALAR
-    /// but adds to ITSELF
-    ///
+    /// dither an image using the specified offsets and divisor.
+    /// `P` is the type of pixel; in practice, it is either [f64] or [RGB<f64]
     fn dither(&self, mut img: Img<P>, mut quantize: impl FnMut(P) -> (P, P)) -> super::Img<P> {
         let width = img.width() as isize;
         let mut spillover = vec![P::default(); img.len()];
@@ -55,9 +72,6 @@ where
     }
 }
 
-#[derive(Debug)]
-pub struct ErrorUnknownDitherer(String);
-
 impl std::str::FromStr for Ditherer<'static> {
     type Err = ErrorUnknownDitherer;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -72,6 +86,11 @@ impl std::str::FromStr for Ditherer<'static> {
         })
     }
 }
+
+/// Atkinson dithering. Div=8.
+/// - `.  x  1  1`
+/// - `1  1  1  .`
+/// - `.  1  .  .`
 pub const ATKINSON: Ditherer = Ditherer {
     name: Some("atkinson"),
     div: 8.,
@@ -88,6 +107,9 @@ pub const ATKINSON: Ditherer = Ditherer {
     ],
 };
 
+/// Burkes dithering. Div=32.
+/// - ` .  .  x  8  4`
+/// - ` 2  4  8  4  2`
 pub const BURKES: Ditherer = Ditherer {
     name: Some("burkes"),
     div: 32.,
@@ -104,11 +126,21 @@ pub const BURKES: Ditherer = Ditherer {
     ],
 };
 
+/// floyd-steinberg dithering. `div=16`
+///
+/// - ` . x   7 `
+/// - ` 7 5  1`
 pub const FLOYD_STEINBERG: Ditherer = Ditherer {
     name: Some("floyd"),
     div: 16.,
     offsets: &[(1, 0, 7.), (-1, 1, 7.), (0, 1, 5.), (1, 1, 1.)],
 };
+
+/// Stucki dithering. `div=42`
+///
+/// - ` .  .  x  8  4`
+/// - ` 2  4  8  4  2`
+/// - ` 1  2  4  2  1`
 pub const STUCKI: Ditherer = Ditherer {
     name: Some("stucki"),
     div: 42.,
@@ -131,6 +163,11 @@ pub const STUCKI: Ditherer = Ditherer {
     ],
 };
 
+/// jarvis-judice-ninke dithering`. div=48.
+///
+/// - `.  .  x  7  5`
+/// - `3  5  7  5  3`
+/// - `1  3  5  3  1`  
 pub const JARVIS_JUDICE_NINKE: Ditherer = Ditherer {
     name: Some("jarvis"),
     div: 48.0,
@@ -153,6 +190,10 @@ pub const JARVIS_JUDICE_NINKE: Ditherer = Ditherer {
     ],
 };
 
+/// sierra 3 dithering. div=32
+/// - `.  .  x  5  3`
+/// - `2  4  5  4  2`
+/// - `.  2  3  2  .`
 pub const SIERRA_3: Ditherer = Ditherer {
     name: Some("sierra3"),
     div: 32.,
@@ -166,8 +207,8 @@ pub const SIERRA_3: Ditherer = Ditherer {
         (0, 1, 5.),
         (1, 1, 4.),
         (2, 1, 2.),
-        (-1, 2, 2.),
         //
+        (-1, 2, 2.),
         (0, 2, 3.),
         (1, 2, 2.),
     ],
@@ -205,5 +246,11 @@ impl<'a> Eq for Ditherer<'a> {}
 impl<'a> PartialEq for Ditherer<'a> {
     fn eq(&self, other: &Self) -> bool {
         (self.div, self.offsets) == (other.div, other.offsets)
+    }
+}
+
+impl<'a> Default for Ditherer<'a> {
+    fn default() -> Self {
+        FLOYD_STEINBERG
     }
 }

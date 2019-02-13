@@ -1,29 +1,42 @@
 //! # Dither
+//! # Written by Efron Licht. Available under the MIT license. Hire me!
+//!
 //!
 //! Inspired by: <http://www.tannerhelland.com/4660/dithering-eleven-algorithms-source-code/>
+//! and the game "Return of the Obra Dinn"
 
 #[macro_use]
 extern crate lazy_static;
 
-/// handling of color
 pub mod color;
 pub mod ditherer;
-pub mod error;
-pub mod img;
-pub mod opts;
+mod error;
+mod img;
+mod opts;
 pub mod prelude;
+pub use self::error::Error;
+pub use self::error::Result;
 
 use self::prelude::*;
 #[cfg(test)]
 mod tests;
 
-/// quantize to n bits
-pub fn create_quantize_n_bits_func(n: u8) -> Result<impl FnMut(f64) -> (f64, f64)> {
+/// quantize to n bits. See the [bit_depth][crate::opts::Opt] option.
+/// ```
+/// # use dither::prelude::*;
+/// # use dither::create_quantize_n_bits_func;
+/// let one_bit = create_quantize_n_bits_func(1).unwrap();
+/// let want = 0;
+/// assert_eq!(one_bit(100.), (0., 100.));
+/// assert_eq!(one_bit(250.), (255., -5.));
+///
+/// ```
+pub fn create_quantize_n_bits_func(n: u8) -> Result<impl Fn(f64) -> (f64, f64)> {
     if n == 0 || n > 7 {
         Err(Error::BadBitDepth(n))
     } else {
         Ok(move |x: f64| {
-            let step_size = 256. / f64::from(n);
+            let step_size = 255. / f64::from(n);
 
             let floor = f64::floor(x / step_size) * step_size;
             let floor_rem = x - floor;
@@ -42,7 +55,8 @@ pub fn create_quantize_n_bits_func(n: u8) -> Result<impl FnMut(f64) -> (f64, f64
     }
 }
 
-/// create a function that converts a quantized black-and-white image to the appropriate palette. i.e,
+/// create a function that converts a quantized black-and-white image to the appropriate palette.
+/// See [CustomPalette][crate::color::Mode::CustomPalette] i.e,
 /// ```
 /// # use dither::create_convert_quantized_to_palette_func;
 /// # use dither::prelude::*;
