@@ -5,6 +5,7 @@ fn main() {
     let opts = Opt::from_args();
     if let Err(err) = _main(&opts) {
         eprintln!("{}", err);
+
         std::process::exit(1)
     } else {
         std::process::exit(0)
@@ -12,6 +13,7 @@ fn main() {
 }
 
 pub fn _main(opts: &Opt) -> Result<()> {
+    let (input, output) = (&opts.input, opts.output_path()?);
     if opts.verbose {
         eprintln!(
             concat!(
@@ -22,35 +24,27 @@ pub fn _main(opts: &Opt) -> Result<()> {
                 "BIT_DEPTH: {depth}\n\t",
                 "COLOR_MODE: {mode}"
             ),
-            input = match opts.input.canonicalize() {
-                Ok(input) => input.to_string_lossy().to_string(),
-                Err(err) => {
-                    return Err(Error::Input(
-                        image::ImageError::IoError(err),
-                        opts.input.to_string_lossy().to_string(),
-                    ))
-                }
-            },
-            output = opts.output_path(),
+            input = input.to_string_lossy(),
+            output = output.to_string_lossy(),
             dither = opts.ditherer,
             depth = opts.bit_depth,
             mode = opts.color_mode,
         );
     }
     let img: Img<RGB<f64>> =
-        Img::<RGB<u8>>::load(&opts.input)?.convert_with(|rgb| rgb.convert_with(f64::from));
+        Img::<RGB<u8>>::load(&input)?.convert_with(|rgb| rgb.convert_with(f64::from));
 
     if opts.verbose {
         eprintln!(
             "image loaded from \"{}\".\ndithering...",
-            opts.input.canonicalize().unwrap().to_string_lossy()
+            input.to_string_lossy()
         )
     }
     let quantize = dither::create_quantize_n_bits_func(opts.bit_depth)?;
 
-    let output_img = match opts.color_mode {
-        color::Mode::CGA | color::Mode::CustomPalette { .. } if opts.bit_depth > 1 => {
-            return Err(Error::IncompatibleOptions);
+    let output_img = match &opts.color_mode {
+        color::Mode::Palette { .. } if opts.bit_depth > 1 => {
+            return Err(Error::CustomPaletteIncompatibleWithDepth);
         }
 
         color::Mode::Color => opts
@@ -58,9 +52,9 @@ pub fn _main(opts: &Opt) -> Result<()> {
             .dither(img, RGB::map_across(quantize))
             .convert_with(|rgb| rgb.convert_with(clamp_f64_to_u8)),
 
-        color::Mode::CGA => opts
+        color::Mode::Palette { palette, .. } => opts
             .ditherer
-            .dither(img, CGA::quantize)
+            .dither(img, color::quantize_palette(palette))
             .convert_with(|rgb| rgb.convert_with(clamp_f64_to_u8)),
 
         color::Mode::BlackAndWhite => {
@@ -72,11 +66,11 @@ pub fn _main(opts: &Opt) -> Result<()> {
 
         color::Mode::SingleColor(color) => {
             if opts.verbose {
-                eprintln!("single_color mode: {}", color)
+                eprintln!("single_color mode: {:x}", color)
             }
 
             let bw_img = img.convert_with(|rgb| rgb.to_chroma_corrected_black_and_white());
-            let RGB(r, g, b) = RGB::<u8>::from(color);
+            let RGB(r, g, b) = RGB::<u8>::from(*color);
 
             opts.ditherer
                 .dither(bw_img, quantize)
@@ -88,23 +82,11 @@ pub fn _main(opts: &Opt) -> Result<()> {
                     )
                 })
         }
-
-        color::Mode::CustomPalette { front, back } => {
-            if opts.verbose {
-                eprintln!("cutom palette: front: {:?}, back {:?} ", &front, &back);
-            }
-            let bw_img = img.convert_with(|rgb| rgb.to_chroma_corrected_black_and_white());
-            opts.ditherer
-                .dither(bw_img, quantize)
-                .convert_with(create_convert_quantized_to_palette_func(front, back))
-                .convert_with(|rgb| rgb.convert_with(clamp_f64_to_u8))
-        }
     };
     if opts.verbose {
         eprintln!("dithering complete.\nsaving...");
     }
-    let s = opts.output_path().to_string();
-    let _ = output_img.save(s)?;
+    output_img.save(&output)?;
     if opts.verbose {
         eprintln!("program finished");
     }
