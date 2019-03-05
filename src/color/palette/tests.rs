@@ -1,8 +1,8 @@
-use super::super::*;
+use super::cga;
+use crate::color::{Error, Mode, RGB};
 use std::collections::HashSet;
 use std::fs::File;
-use std::io::prelude::*;
-use std::path::{Path, PathBuf};
+use std::io::Write;
 #[test]
 fn parse() {
     const GARBAGE: &str = "ASDASLKJAS";
@@ -51,7 +51,10 @@ fn parse() {
     if let Mode::Palette {
         palette: got_palette,
         ..
-    } = input.to_string_lossy().parse::<Mode>().unwrap()
+    } = input
+        .to_string_lossy()
+        .parse::<Mode>()
+        .expect("should have no trouble parsing")
     {
         assert_eq!(want_palette, got_palette.iter().cloned().collect());
     } else {
