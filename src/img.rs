@@ -114,7 +114,7 @@ impl<N: From<u8>> Img<RGB<N>> {
         match image::open(&path).and_then(|img| Ok(img.to_rgb())) {
             Err(err) => Err(Error::input(err, path.as_ref())),
             Ok(img) => Ok(Img {
-                buf: img.pixels().map(|p| RGB::from(p.data)).collect(),
+                buf: img.pixels().map(|p| RGB::from(p.0)).collect(),
                 width: img.width(),
             }),
         }
