@@ -1,13 +1,14 @@
 use crate::prelude::*;
+use clap::Clap;
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
-use structopt::StructOpt;
-#[derive(Debug, StructOpt, Default, PartialEq, Clone)]
-#[structopt(name = "dither")]
-/// Command-line interface & arguments. See [structopt].
+#[derive(Debug, Clap, Default, PartialEq, Clone)]
+#[clap(name = "dither")]
+#[clap(version = "1.3.8", author = "Efron Licht (efron.python@gmail.com)")]
+/// Command-line interface & arguments. See [clap].
 pub struct Opt {
     /// Provide verbose debug information. Default is false.
-    #[structopt(short = "v", long = "verbose")]
+    #[clap(short = "v", long = "verbose")]
     pub verbose: bool,
     /// Input file. Supported file types:
     /// `PNG`
@@ -16,16 +17,16 @@ pub struct Opt {
     /// `BMP`
     /// `ICO`
     /// `TIFF`
-    #[structopt(name = "input", parse(from_os_str))]
+    #[clap(name = "input", parse(from_os_str))]
     pub input: PathBuf,
 
     /// Color depth. Must be between 1 and 8. See [create_quantize_n_bits_func][crate::create_quantize_n_bits_func] and [create_convert_quantized_to_palette_func][crate::create_convert_quantized_to_palette_func]
-    #[structopt(long = "depth", default_value = "1")]
+    #[clap(long = "depth", default_value = "1")]
     pub bit_depth: u8,
 
     /// Output file: will be written to as a .png or .jpg (inferred from file extension). If left empty,
     /// a default output path will be created: see [Opt::output_path]
-    #[structopt(name = "output", parse(from_os_str))]
+    #[clap(name = "output", parse(from_os_str))]
     pub output: Option<PathBuf>,
 
     /// Ditherering algorithm to use. Options are
@@ -36,7 +37,7 @@ pub struct Opt {
     /// - "jarvis"
     /// - "sierra3"
     ///
-    #[structopt(short = "d", long = "dither", default_value = "floyd")]
+    #[clap(short = "d", long = "dither", default_value = "floyd")]
     pub ditherer: Ditherer<'static>,
 
     /// Color mode to use.
@@ -47,7 +48,7 @@ pub struct Opt {
     /// - crayon => load the crayon palette. equivalent to "crayon.plt"
     /// - $COLOR => single-color mode. options are
     /// - $FILENAME" => load palette from file, listed as line-separated RGB values. see "cga.plt" and the readme for more information on palette files.
-    #[structopt(short = "c", long = "color", default_value = "bw")]
+    #[clap(short = "c", long = "color", default_value = "bw")]
     pub color_mode: color::Mode,
 }
 

@@ -1,9 +1,10 @@
 //! The actual runtime library.
+use clap::Clap;
 use color::palette;
 use dither::prelude::*;
-use structopt::StructOpt;
+
 fn main() {
-    let opts = Opt::from_args();
+    let opts = Opt::parse();
     if let Err(err) = _main(&opts) {
         eprintln!("{}", err);
 
