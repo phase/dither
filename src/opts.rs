@@ -1,8 +1,9 @@
 use crate::prelude::*;
-use clap::Clap;
+use clap::Parser;
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
-#[derive(Debug, Clap, Default, PartialEq, Clone)]
+
+#[derive(Debug, Parser, Default, PartialEq, Clone)]
 #[clap(name = "dither")]
 #[clap(version = "1.3.8", author = "Efron Licht (efron.python@gmail.com)")]
 /// Command-line interface & arguments. See [clap].
@@ -17,7 +18,7 @@ pub struct Opt {
     /// `BMP`
     /// `ICO`
     /// `TIFF`
-    #[clap(name = "input", parse(from_os_str))]
+    #[clap(name = "input")]
     pub input: PathBuf,
 
     /// Color depth. Must be between 1 and 8. See [create_quantize_n_bits_func][crate::create_quantize_n_bits_func] and [create_convert_quantized_to_palette_func][crate::create_convert_quantized_to_palette_func]
@@ -26,7 +27,7 @@ pub struct Opt {
 
     /// Output file: will be written to as a .png or .jpg (inferred from file extension). If left empty,
     /// a default output path will be created: see [Opt::output_path]
-    #[clap(name = "output", parse(from_os_str))]
+    #[clap(name = "output")]
     pub output: Option<PathBuf>,
 
     /// Ditherering algorithm to use. Options are

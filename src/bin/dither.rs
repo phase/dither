@@ -1,10 +1,10 @@
 //! The actual runtime library.
-use clap::Clap;
+use clap::Parser;
 use color::palette;
 use dither::prelude::*;
 
 fn main() {
-    let opts = Opt::parse();
+    let opts = Opt::try_parse().expect("could not parse options");
     if let Err(err) = _main(&opts) {
         eprintln!("{}", err);
 

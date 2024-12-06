@@ -32,6 +32,13 @@ pub enum Mode {
     },
 }
 
+impl From<String> for Mode {
+    fn from(s: String) -> Self {
+        // Parse using FromStr implementation
+        s.parse().unwrap_or(Mode::default())
+    }
+}
+
 impl Mode {
     /// the built-in CGA palette. see the [cga] module for a list of contained colors.
     const CGA: Self = Mode::Palette {
